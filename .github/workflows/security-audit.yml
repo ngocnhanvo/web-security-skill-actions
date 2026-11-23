@@ -1,6 +1,11 @@
 name: Low-impact website security audit
 
 on:
+  # Push-triggered requests enable scanning even when the GitHub connector lacks POST workflow_dispatch.
+  push:
+    branches: [main]
+    paths:
+      - 'requests/public/*.json'
   workflow_dispatch:
     inputs:
       domain:
@@ -37,18 +42,30 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, pinned
         with:
           persist-credentials: false
+          fetch-depth: 2
+      - name: Resolve public push request
+        if: github.event_name == 'push'
+        id: public_request
+        run: python3 -m auditor.public_bridge --output "$GITHUB_OUTPUT"
       - name: Run local tests first
         run: python3 -m unittest discover -s tests -v
       - name: Run constrained audit
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m auditor scan \
-            --domain "$AUDIT_DOMAIN" \
-            --authorization-url "$AUDIT_AUTH_URL" \
-            --challenge "$AUDIT_CHALLENGE" \
-            --out "$RUNNER_TEMP/private-report.json" \
-            --public-out "$RUNNER_TEMP/public-report.json"
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # The push bridge is strictly public-only: no authorization or active probes.
+            python3 -m auditor scan \
+              --domain "${{ steps.public_request.outputs.domain }}" \
+              --public-out "$RUNNER_TEMP/public-report.json"
+          else
+            python3 -m auditor scan \
+              --domain "$AUDIT_DOMAIN" \
+              --authorization-url "$AUDIT_AUTH_URL" \
+              --challenge "$AUDIT_CHALLENGE" \
+              --out "$RUNNER_TEMP/private-report.json" \
+              --public-out "$RUNNER_TEMP/public-report.json"
+          fi
       - name: Upload public-safe summary only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2, pinned
