@@ -1,0 +1,22 @@
+name: Security auditor unit tests
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 pinned
+        with:
+          persist-credentials: false
+      - name: Compile Python sources
+        run: python3 -m compileall -q auditor
+      - name: Run offline tests
+        run: python3 -m unittest discover -s tests -v

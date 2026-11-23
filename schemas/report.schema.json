@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ngocnhanvo/web-security-skill-actions/schemas/report.schema.json",
+  "type": "object", "required": ["schema_version", "target_hostname", "scan_status", "public", "authorization", "active", "disclaimer"],
+  "properties": {
+    "schema_version": {"const":"1.0.0"},
+    "target_hostname":{"type":"string"},
+    "scan_status":{"enum":["completed","halted"]},
+    "public":{"type":"object"},
+    "authorization":{"type":"object"},
+    "active":{"type":"object"},
+    "disclaimer":{"type":"string"}
+  }
+}

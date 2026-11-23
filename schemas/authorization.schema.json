@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ngocnhanvo/web-security-skill-actions/schemas/authorization.schema.json",
+  "title": "Owner-hosted low-impact security audit consent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "domain",
+    "authorization_id",
+    "authorized_auditor",
+    "authorized_by",
+    "consent_confirmed",
+    "not_before",
+    "expires_at",
+    "allowed_tests",
+    "test_paths",
+    "max_requests"
+  ],
+  "properties": {
+    "version": {"const": 1},
+    "domain": {"type": "string", "minLength": 4},
+    "authorization_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{24,128}$"},
+    "authorized_auditor": {"type": "string", "minLength": 3, "maxLength": 160},
+    "authorized_by": {"type": "string", "minLength": 3, "maxLength": 160},
+    "consent_confirmed": {"const": true},
+    "not_before": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "allowed_tests": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["sql_injection_low_impact", "xss_low_impact", "authentication_basic"]}
+    },
+    "test_paths": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 15,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "tests"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^/(?!/)"},
+          "tests": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"enum": ["sql_injection_low_impact", "xss_low_impact", "authentication_basic"]}
+          },
+          "expected_protected_marker": {"type": "string", "minLength": 8, "maxLength": 100}
+        }
+      }
+    },
+    "max_requests": {"type": "integer", "minimum": 1, "maximum": 30}
+  }
+}

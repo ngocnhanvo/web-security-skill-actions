@@ -1,0 +1,59 @@
+name: Low-impact website security audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: 'Public HTTPS domain (example.com or https://example.com)'
+        type: string
+        required: true
+      authorization_url:
+        description: 'Optional exact same-host HTTPS authorization JSON URL'
+        type: string
+        required: false
+      challenge:
+        description: 'Optional fresh authorization_id created by challenge CLI'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-auditor-single-operator
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AUDIT_DOMAIN: ${{ inputs.domain }}
+      AUDIT_AUTH_URL: ${{ inputs.authorization_url }}
+      AUDIT_CHALLENGE: ${{ inputs.challenge }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout fixed source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, pinned
+        with:
+          persist-credentials: false
+      - name: Run local tests first
+        run: python3 -m unittest discover -s tests -v
+      - name: Run constrained audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m auditor scan \
+            --domain "$AUDIT_DOMAIN" \
+            --authorization-url "$AUDIT_AUTH_URL" \
+            --challenge "$AUDIT_CHALLENGE" \
+            --out "$RUNNER_TEMP/private-report.json" \
+            --public-out "$RUNNER_TEMP/public-report.json"
+      - name: Upload public-safe summary only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2, pinned
+        with:
+          name: public-security-summary
+          path: ${{ runner.temp }}/public-report.json
+          if-no-files-found: ignore
+          retention-days: 3
