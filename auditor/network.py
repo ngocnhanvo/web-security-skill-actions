@@ -138,8 +138,14 @@ class PinnedHTTP:
             if len(body) > MAX_RESPONSE_BYTES:
                 raise AuditError('Response size exceeded limit')
             return Response(response.status, response.getheaders(), body)
-        except (OSError, ssl.SSLError, http.client.HTTPException, TimeoutError) as exc:
-            raise AuditError('TLS or HTTP request failed') from exc
+        except ssl.SSLCertVerificationError as exc:
+            raise AuditError('TLS certificate verification failed') from exc
+        except ssl.SSLError as exc:
+            raise AuditError('TLS handshake failed') from exc
+        except TimeoutError as exc:
+            raise AuditError('Connection timed out') from exc
+        except (OSError, http.client.HTTPException) as exc:
+            raise AuditError('HTTP transport failed') from exc
         finally:
             conn.close()
 

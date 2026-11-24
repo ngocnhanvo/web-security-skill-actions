@@ -51,6 +51,42 @@ class TestAdminSubdomainReview(unittest.TestCase):
         self.assertEqual(result['authentication_attempts'],0)
         self.assertTrue(all(x.endswith('/') for x in calls))
 
+    def test_safe_same_host_redirect_and_browser_classification(self):
+        calls=[]
+        class RedirectClient:
+            def get_unfollowed(self,url):
+                calls.append(url)
+                if url.endswith('/'):
+                    return Response(302,[('Location','/login')],b'')
+                return Response(200,[('Content-Type','text/html')],b'<title>Admin Login</title>')
+        report=review_common_admin_hosts('example.com',resolve=lambda _:['8.8.8.8'],
+                client_factory=lambda host,ips:RedirectClient(),
+                render=lambda body:{'status':'admin_login_candidate'},budget=budget())
+        self.assertEqual(report['http_attempted_count'],20)
+        self.assertEqual(report['admin_login_candidates'],10)
+        self.assertEqual(report['results'][0]['first_http_status'],302)
+        self.assertEqual(report['results'][0]['http_status'],200)
+        self.assertTrue(report['results'][0]['redirect_followed'])
+        self.assertEqual(calls[:2],['https://admin.example.com/','https://admin.example.com/login'])
+
+    def test_query_redirect_is_not_followed(self):
+        calls=[]
+        response=Response(302,[('Location','/login?token=hidden')],b'')
+        report=review_common_admin_hosts('example.com',resolve=lambda _:['8.8.8.8'],
+          client_factory=lambda host,ips:Client(host,ips,calls,response),budget=budget())
+        self.assertEqual(len(calls),10)
+        self.assertEqual(report['results'][0]['redirect_scope'],'different_host_or_unsafe')
+        self.assertNotIn('hidden',repr(report))
+
+    def test_tls_certificate_error_is_distinct(self):
+        class CertError:
+            def __init__(self,host,ips): pass
+            def get_unfollowed(self,url): raise AuditError('TLS certificate verification failed')
+        report=review_common_admin_hosts('example.com',resolve=lambda _:['8.8.8.8'],
+              client_factory=CertError,budget=budget())
+        self.assertEqual(report['results'][0]['https_status'],'tls_certificate_error')
+        self.assertEqual(report['http_attempted_count'],10)
+
     def test_dns_non_global_never_sends_requests(self):
         def resolve(_):
             raise AuditError('DNS includes a private, reserved or otherwise non-global address')
