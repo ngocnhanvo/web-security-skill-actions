@@ -40,6 +40,16 @@ python3 -m auditor scan --domain example.com --public-out public-summary.json
 
 For **GitHub Actions**: open `Actions → Low-impact website security audit → Run workflow` and enter `domain`; leave permission URL and challenge blank for public-only mode. To run authorized mode, provide both values. Do not send arbitrary inputs to a scanner outside your permission scope.
 
+## Offline owner administration inventory
+
+For deeper configuration review use an owner-completed private copy of `templates/admin-inventory.example.json`. Use a non-sensitive alias for each actual interface and enter the owner's observed controls. This local mode does not contact any server or discover hostnames.
+
+```bash
+python3 -m auditor review-admin-inventory --input owner-inventory.json --out private-inventory-review.json
+```
+
+Do not commit real inventories or reports to the public repository. The command labels all answers as owner-reported, not independently verified; unknown controls remain not verified. No network probing or authentication test is performed. See [admin interface review](docs/admin-interface-review.md).
+
 ## Output and interpretation
 
 - `public.findings`: direct configuration observations (e.g. absent security headers). Severity is a prioritization suggestion, not proof of compromise.

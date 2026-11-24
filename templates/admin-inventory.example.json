@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "interfaces": [
+    {
+      "id": "interface_01",
+      "exposure": "unknown",
+      "https_enforced": "unknown",
+      "authentication_required": "unknown",
+      "mfa_required": "unknown",
+      "network_access_restricted": "unknown",
+      "server_side_authorization": "unknown"
+    }
+  ]
+}

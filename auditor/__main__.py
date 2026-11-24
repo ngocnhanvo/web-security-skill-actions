@@ -9,6 +9,7 @@ import sys
 
 from auditor.network import AuditError,validate_target
 from auditor.runner import audit,public_report
+from auditor.admin_inventory import review_inventory_file, InventoryError
 
 
 def write_json(path: str, value: dict) -> None:
@@ -29,8 +30,18 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument('--challenge',default='')
     scan.add_argument('--out',help='LOCAL/PRIVATE full report path; never upload to a public repo')
     scan.add_argument('--public-out',required=True,help='Sanitized report safe for public GitHub Actions artifacts')
+    inventory=sub.add_parser('review-admin-inventory',help='Offline review of owner-provided administration controls; no network')
+    inventory.add_argument('--input',required=True,help='PRIVATE owner inventory JSON')
+    inventory.add_argument('--out',required=True,help='PRIVATE local review report; never publish')
     args=parser.parse_args(argv)
     try:
+        if args.action=='review-admin-inventory':
+            if Path(args.input).resolve() == Path(args.out).resolve():
+                raise InventoryError('Input and report must be different files')
+            report=review_inventory_file(args.input)
+            write_json(args.out,report)
+            print('Offline inventory review saved; owner-reported evidence only; no network verification')
+            return 0
         host=validate_target(args.domain)
         if args.action=='challenge':
             now=datetime.now(timezone.utc)
@@ -55,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         print('Audit saved; scan_status=' + result['scan_status'] + '; authorization=' + result['authorization']['status']
               + '; active=' + result['active']['status'])
         return 0 if result['scan_status']=='completed' else 2
-    except (AuditError,ValueError) as exc:
+    except (AuditError,ValueError,InventoryError) as exc:
         print('Audit rejected: ' + str(exc),file=sys.stderr)
         return 2
 
