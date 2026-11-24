@@ -30,6 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument('--authorization-url',default='')
     scan.add_argument('--challenge',default='')
     scan.add_argument('--out',help='LOCAL/PRIVATE full report path; never upload to a public repo')
+    scan.add_argument('--offline-browser',action='store_true',help='Review already-fetched homepage HTML offline; no additional destination requests')
     scan.add_argument('--public-out',required=True,help='Sanitized report safe for public GitHub Actions artifacts')
     inventory=sub.add_parser('review-admin-inventory',help='Offline review of owner-provided administration controls; no network')
     inventory.add_argument('--input',required=True,help='PRIVATE owner inventory JSON')
@@ -69,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
             write_json(args.out,data)
             print('Authorization template created; site owner MUST review, specify test_paths, and affirm consent. Do not upload blindly.')
             return 0
-        result=audit(host,authorization_url=args.authorization_url or None,challenge=args.challenge or None)
+        result=audit(host,authorization_url=args.authorization_url or None,challenge=args.challenge or None,offline_browser=args.offline_browser)
         write_json(args.public_out,public_report(result))
         if args.out:
             write_json(args.out,result)

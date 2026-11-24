@@ -64,7 +64,7 @@ python3 -m playwright install chromium
 python3 -m auditor review-admin-snapshot --input owner-page.html --out private-interface-review.json
 ```
 
-The browser renders supplied HTML offline, with JavaScript disabled and requests aborted. It does not navigate to websites, generate hostnames, submit forms, or enter credentials. A candidate admin login requires explicit administration labels plus a visible form/password input. Error or ambiguous pages do not receive a Low candidate warning. Results never establish live reachability or authentication bypass. Keep snapshots and reports private. Browser integration tests are opt-in via RUN_OFFLINE_BROWSER_TESTS=1.
+The browser renders supplied HTML offline, with JavaScript disabled and requests aborted. It does not navigate to websites, generate hostnames, submit forms, or enter credentials. A candidate admin login requires explicit administration labels plus a visible form/password input. Error or ambiguous pages do not receive a Low candidate warning. Results never establish live reachability or authentication bypass. Keep snapshots and reports private. Browser integration tests are enabled in CI via RUN_OFFLINE_BROWSER_TESTS=1. The audit workflow also uses --offline-browser to classify only the existing homepage HTML response, without following links or requesting additional destinations; the redacted field is public.homepage_browser_review. Browser failure is reported as not_tested.
 
 ## Output and interpretation
 

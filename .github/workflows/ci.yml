@@ -18,5 +18,11 @@ jobs:
           persist-credentials: false
       - name: Compile Python sources
         run: python3 -m compileall -q auditor
-      - name: Run offline tests
+      - name: Install pinned offline browser
+        run: |
+          python3 -m pip install playwright==1.65.2
+          python3 -m playwright install --with-deps chromium
+      - name: Run offline tests including Chromium fixtures
+        env:
+          RUN_OFFLINE_BROWSER_TESTS: '1'
         run: python3 -m unittest discover -s tests -v

@@ -50,6 +50,15 @@ class TestRunner(unittest.TestCase):
         self.assertNotIn('SECRET', summary)
         self.assertEqual(r['active']['status'],'not_run')
 
+    def test_offline_browser_uses_existing_response_only(self):
+        c=FakeTransport('example.com',['8.8.8.8'])
+        with patch('auditor.runner.review_html_bytes',return_value={'status':'unknown','live_reachability':'not_tested','authentication':'not_tested'}) as browser:
+            r=self._audit(c,offline_browser=True)
+        browser.assert_called_once_with(b'<html>ok</html>')
+        self.assertEqual(c.requests,['https://example.com/'])
+        self.assertEqual(r['public']['homepage_browser_review']['status'],'unknown')
+        self.assertEqual(r['public']['homepage_browser_review']['scope'],'homepage HTML offline')
+
     def test_waf_block_page_not_scored_as_real_site(self):
         class Blocked(FakeTransport):
             def get(self, url):

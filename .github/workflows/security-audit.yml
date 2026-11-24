@@ -47,7 +47,13 @@ jobs:
         if: github.event_name == 'push'
         id: public_request
         run: python3 -m auditor.public_bridge --output "$GITHUB_OUTPUT"
+      - name: Install pinned offline browser
+        run: |
+          python3 -m pip install playwright==1.65.2
+          python3 -m playwright install --with-deps chromium
       - name: Run local tests first
+        env:
+          RUN_OFFLINE_BROWSER_TESTS: '1'
         run: python3 -m unittest discover -s tests -v
       - name: Run constrained audit
         shell: bash
@@ -55,11 +61,11 @@ jobs:
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "push" ]]; then
             # The push bridge is strictly public-only: no authorization or active probes.
-            python3 -m auditor scan \
+            python3 -m auditor scan --offline-browser \
               --domain "${{ steps.public_request.outputs.domain }}" \
               --public-out "$RUNNER_TEMP/public-report.json"
           else
-            python3 -m auditor scan \
+            python3 -m auditor scan --offline-browser \
               --domain "$AUDIT_DOMAIN" \
               --authorization-url "$AUDIT_AUTH_URL" \
               --challenge "$AUDIT_CHALLENGE" \

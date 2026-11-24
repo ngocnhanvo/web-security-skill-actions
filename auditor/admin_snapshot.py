@@ -44,10 +44,17 @@ def review_snapshot(path):
     try:
         with Path(path).open('rb') as f:
             raw = f.read(MAX_BYTES + 1)
-        if not raw or len(raw) > MAX_BYTES:
-            raise SnapshotError('Invalid snapshot size')
+        return review_html_bytes(raw)
+    except OSError as exc:
+        raise SnapshotError('Unable to read HTML snapshot') from exc
+
+
+def review_html_bytes(raw):
+    if not raw or len(raw) > MAX_BYTES:
+        raise SnapshotError('Invalid snapshot size')
+    try:
         html = raw.decode('utf-8-sig')
-    except (OSError, UnicodeError) as exc:
+    except UnicodeError as exc:
         raise SnapshotError('Unable to read UTF-8 HTML snapshot') from exc
     try:
         from playwright.sync_api import sync_playwright
