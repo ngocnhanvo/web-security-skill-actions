@@ -29,3 +29,10 @@
 2. Create a fresh challenge, obtain properly authorized consent at an owner-chosen HTTPS path, and run only explicitly scoped probes in a controlled test environment.
 3. Verify that malformed / expired / removed permission file downgrades to public-only and prevents active requests.
 4. Update this checkpoint with concrete run IDs; avoid claiming acceptance before observation.
+
+## Administration exposure update — 2026-11-24
+
+- Passive public observation implementation verified: explicit administration links and accessible labels, same-host and explicitly advertised descendant host links, no additional network requests; negative status is `not_found`, not PASS. CI: https://github.com/ngocnhanvo/web-security-skill-actions/actions/runs/45316022344 (43 tests).
+- Local owner inventory configuration review implemented in `auditor/admin_inventory.py` and `review-admin-inventory` CLI, using the sample in `templates/admin-inventory.example.json`. Evaluates six declared controls/exposure categories, separates reported gaps from independently verified evidence, and makes zero network requests. CI: https://github.com/ngocnhanvo/web-security-skill-actions/actions/runs/45317286864 (50/50 tests, source 705dabbf9eaa35b6980db5395c7b3f134a824130).
+- Skill updated at 5c7097b9d5b9626b5e77ad510688962d0026d64f. Both repos read back successfully.
+- No real owner inventory supplied or independently verified. No automatic admin hostname guessing, DNS enumeration, hidden-route discovery, script/sitemap/robots mining or live admin destination verification performed. These are not part of the delivered passive/offline review. For a separately approved actual hostname, retain independent exact-host consent and scope. Do not claim the original broader discovery proposal is implemented.
