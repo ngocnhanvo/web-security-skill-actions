@@ -20,3 +20,7 @@ The report separates reported exposure (Low), reported gaps, owner-reported conf
 Additional hostnames remain independently scoped. For any authorized audit, use a separate exact-host permission file and fresh challenge for each hostname; a parent domain's consent is not inherited. Do not broaden the authorization schema or use guessed hostnames. The existing runner remains one exact hostname per run.
 
 Robots/sitemap, script bundles and additional pages are not automatically fetched or mined for hidden administration destinations. No active discovery or authentication attempts are included in this revision.
+
+## Top 10 priority subset
+
+Public mode counts up to ten distinct explicitly advertised descendant hostnames, with an overflow indicator; no names are returned and no destination is contacted. Offline inventory permits optional owner-declared `publicly_advertised` and `name_prevalence`. Eligible records are advertised or have medium/high declared prevalence. Advertised records rank first, then declared prevalence, then alias. Limit the priority subset to ten while retaining all records for control review. Prevalence is not independently measured. Unknown data cannot establish popularity.

@@ -50,6 +50,10 @@ python3 -m auditor review-admin-inventory --input owner-inventory.json --out pri
 
 Do not commit real inventories or reports to the public repository. The command labels all answers as owner-reported, not independently verified; unknown controls remain not verified. No network probing or authentication test is performed. See [admin interface review](docs/admin-interface-review.md).
 
+## Top 10 administration review
+
+Public HTML observations count at most ten distinct explicitly advertised descendant hostnames, with an overflow flag; no names are disclosed or contacted. The count is not a prevalence ranking. The local owner inventory optionally accepts `publicly_advertised` (yes/no/unknown) and `name_prevalence` (high/medium/low/unknown). Prioritize advertised records first, then high and medium declared name prevalence, with a deterministic alias tie-break. Select at most ten eligible existing records in `priority_review`; full control review remains unchanged. Prevalence is the owner's assessment, not measured statistics. No guessed hostnames, wordlists or additional requests.
+
 ## Output and interpretation
 
 - `public.findings`: direct configuration observations (e.g. absent security headers). Severity is a prioritization suggestion, not proof of compromise.

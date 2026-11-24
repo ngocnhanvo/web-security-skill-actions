@@ -12,6 +12,7 @@ from auditor.checks import issue
 from auditor.network import Response
 
 CODE = 'ADMIN_INTERFACE_EXPOSURE'
+PRIORITY_LIMIT = 10
 LABELS = frozenset({
     'admin login', 'administrator login', 'administration',
     'admin portal', 'admin dashboard', 'admin panel',
@@ -35,6 +36,7 @@ class _PublicLinks(HTMLParser):
         self.parts = []
         self.suppressed = []
         self.signals = set()
+        self.descendant_hosts = set()
         self.accessible_labels = []
         self.base_uncertain = False
 
@@ -85,6 +87,9 @@ class _PublicLinks(HTMLParser):
                 # Classify only an explicitly published descendant link.
                 # Never generate candidate names, resolve DNS or visit it.
                 self.signals.add('descendant_host_advertised_link')
+                # Store at most limit+1 distinct names internally, only for redacted counts.
+                if len(self.descendant_hosts) <= PRIORITY_LIMIT:
+                    self.descendant_hosts.add(target.hostname)
         except ValueError:
             return
 
@@ -94,7 +99,9 @@ def inspect_admin_exposure(response: Response, hostname: str) -> tuple[dict, lis
     status = {'status': 'not_tested', 'scope': 'homepage HTML only',
               'note': 'No suitable HTML response was inspected',
               'evidence_types': [], 'destination_verification': 'not_tested',
-              'hostname_discovery': 'not_tested'}
+              'hostname_discovery': 'not_tested',
+              'advertised_subdomains': {'limit': PRIORITY_LIMIT, 'status': 'not_tested',
+                                        'observed_count_capped': None, 'more_than_limit': None}}
     ctype = (response.header('Content-Type') or '').split(';', 1)[0].strip().lower()
     encoding = (response.header('Content-Encoding') or 'identity').strip().lower()
     if not 200 <= response.status < 300 or ctype != 'text/html' or encoding != 'identity' or not response.body.strip():
@@ -110,6 +117,10 @@ def inspect_admin_exposure(response: Response, hostname: str) -> tuple[dict, lis
     if parser.base_uncertain:
         status['note'] = 'Modified HTML base URL; link interpretation skipped'
         return status, []
+    count = len(parser.descendant_hosts)
+    status['advertised_subdomains'].update(status='observed' if count else 'not_found',
+                                          observed_count_capped=min(count, PRIORITY_LIMIT),
+                                          more_than_limit=count > PRIORITY_LIMIT)
     if not parser.signals:
         status.update(status='not_found', note='No explicit administration link label observed in the inspected HTML; undisclosed interfaces and access controls were not tested')
         return status, []

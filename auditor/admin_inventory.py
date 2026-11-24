@@ -18,6 +18,8 @@ STATES = frozenset({'yes', 'no', 'unknown'})
 EXPOSURES = frozenset({'internet', 'restricted', 'unknown'})
 MAX_BYTES = 65536
 MAX_INTERFACES = 100
+PRIORITY_LIMIT = 10
+PREVALENCE = frozenset({'high', 'medium', 'low', 'unknown'})
 
 
 def _check(record, control, severity, advice):
@@ -38,9 +40,12 @@ def review_inventory(value):
         raise InventoryError('Inventory requires 1 to 100 explicit interface records')
     seen = set()
     output = []
+    candidates = []
     required = {'id', 'exposure', *CONTROLS}
+    optional = {'publicly_advertised', 'name_prevalence'}
     for record in records:
-        if not isinstance(record, dict) or set(record) != required:
+        if (not isinstance(record, dict) or not required.issubset(record)
+                or not set(record).issubset(required | optional)):
             raise InventoryError('Invalid interface fields; no URLs or secrets accepted')
         identifier = record['id']
         if (not isinstance(identifier, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,40}', identifier)
@@ -52,6 +57,15 @@ def review_inventory(value):
             raise InventoryError('Invalid exposure classification')
         if any(not isinstance(record[k], str) or record[k] not in STATES for k in CONTROLS):
             raise InventoryError('Controls must be yes, no or unknown')
+        advertised = record.get('publicly_advertised', 'unknown')
+        prevalence = record.get('name_prevalence', 'unknown')
+        if not isinstance(advertised, str) or advertised not in STATES:
+            raise InventoryError('Public advertisement must be yes, no or unknown')
+        if not isinstance(prevalence, str) or prevalence not in PREVALENCE:
+            raise InventoryError('Name prevalence must be high, medium, low or unknown')
+        if advertised == 'yes' or prevalence in ('high', 'medium'):
+            candidates.append({'id': identifier, 'publicly_advertised': advertised,
+                               'name_prevalence': prevalence, 'evidence': 'owner_reported'})
         public = exposure == 'internet'
         # Public access to a login interface is not itself an auth bypass.
         checks = [
@@ -72,7 +86,15 @@ def review_inventory(value):
                    'not_verified':'not_verified','reported_configured':'reported_controls',
                    'reported_restricted':'reported_controls'}[item['status']]
             counts[key] += 1
+    # Priority uses only declared records, never a generated hostname or wordlist.
+    order = {'high': 0, 'medium': 1, 'low': 2, 'unknown': 3}
+    candidates.sort(key=lambda x: (x['publicly_advertised'] != 'yes', order[x['name_prevalence']], x['id']))
+    priority = {'limit': PRIORITY_LIMIT, 'eligible_count': len(candidates),
+                'omitted_count': max(0, len(candidates) - PRIORITY_LIMIT),
+                'basis': 'owner_reported_advertisement_and_name_prevalence_not_measured',
+                'interfaces': candidates[:PRIORITY_LIMIT]}
     return {'schema_version':'1.0.0', 'mode':'offline_admin_inventory',
+            'priority_review': priority,
             'evidence':'owner_reported_not_independently_verified',
             'network_requests':0, 'live_verification':'not_tested',
             'interface_count':len(output), 'counts':counts, 'interfaces':output,

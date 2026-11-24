@@ -60,6 +60,23 @@ class TestAdminExposure(unittest.TestCase):
         self.assertEqual(status['status'], 'not_found')
         self.assertEqual(findings, [])
 
+    def test_public_descendant_count_is_capped_and_deduplicated(self):
+        html = ''.join('<a href="https://published%d.example.com/">Admin portal</a>' % i for i in range(12))
+        status, findings = self.inspect(html)
+        summary = status['advertised_subdomains']
+        self.assertEqual(summary['observed_count_capped'], 10)
+        self.assertTrue(summary['more_than_limit'])
+        self.assertNotIn('published0.example.com', repr((status, findings)))
+        html = '<a href="https://published.example.com/">Admin portal</a>' * 12
+        summary = self.inspect(html)[0]['advertised_subdomains']
+        self.assertEqual(summary['observed_count_capped'], 1)
+        self.assertFalse(summary['more_than_limit'])
+
+    def test_public_count_unknown_for_unusable_html(self):
+        summary = self.inspect('{}', 'application/json')[0]['advertised_subdomains']
+        self.assertIsNone(summary['observed_count_capped'])
+        self.assertEqual(summary['status'], 'not_tested')
+
     def test_duplicate_observations_are_single_finding(self):
         status, findings = self.inspect('<a href="/x">Admin login</a><a href="/y">Admin panel</a>')
         self.assertEqual(len(findings), 1)

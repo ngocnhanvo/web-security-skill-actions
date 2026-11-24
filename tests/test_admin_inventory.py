@@ -41,6 +41,29 @@ class TestAdminInventory(unittest.TestCase):
         self.assertEqual(r['interface_count'],2)
         self.assertEqual(r['counts']['reported_exposures'],1)
 
+    def test_priority_top_ten_only_owner_declared_and_deterministic(self):
+        rows = [sample(id='item_%02d' % i, name_prevalence='medium') for i in range(15)]
+        rows.extend([sample(id='preferred', publicly_advertised='yes', name_prevalence='low'),
+                     sample(id='high_priority', name_prevalence='high'),
+                     sample(id='unknown'), sample(id='low', name_prevalence='low')])
+        result = self.review(*rows)['priority_review']
+        self.assertEqual(result['eligible_count'], 17)
+        self.assertEqual(result['omitted_count'], 7)
+        self.assertEqual(len(result['interfaces']), 10)
+        self.assertEqual([x['id'] for x in result['interfaces'][:2]], ['preferred','high_priority'])
+        self.assertEqual(result, self.review(*reversed(rows))['priority_review'])
+        self.assertEqual(self.review(*rows)['interface_count'], 19)
+
+    def test_no_owner_metadata_does_not_invent_prevalence(self):
+        r = self.review(sample())['priority_review']
+        self.assertEqual(r['eligible_count'], 0)
+        self.assertEqual(r['interfaces'], [])
+        self.assertIn('not_measured', r['basis'])
+
+    def test_invalid_priority_metadata_is_rejected(self):
+        for row in [sample(publicly_advertised=True), sample(name_prevalence='very_high')]:
+            with self.assertRaises(InventoryError): self.review(row)
+
     def test_reject_secret_fields_and_invalid_values(self):
         for row in [sample(password='secret'),sample(id='https://example.com'),sample(exposure=[]),sample(mfa_required=True),sample(https_enforced='maybe')]:
             with self.subTest(row=row),self.assertRaises(InventoryError):
