@@ -24,3 +24,7 @@ Robots/sitemap, script bundles and additional pages are not automatically fetche
 ## Top 10 priority subset
 
 Public mode counts up to ten distinct explicitly advertised descendant hostnames, with an overflow indicator; no names are returned and no destination is contacted. Offline inventory permits optional owner-declared `publicly_advertised` and `name_prevalence`. Eligible records are advertised or have medium/high declared prevalence. Advertised records rank first, then declared prevalence, then alias. Limit the priority subset to ten while retaining all records for control review. Prevalence is not independently measured. Unknown data cannot establish popularity.
+
+## Offline browser observation
+
+The optional `review-admin-snapshot` command renders an operator-supplied local HTML snapshot with Playwright Chromium, offline, JavaScript disabled, service workers blocked, and network routes aborted. It observes page title, visible headings, form and password-input visibility only. It never navigates to a target URL. A Low candidate label requires explicit administration evidence and visible login controls; error, ordinary customer login and ambiguous cases are distinct. Live reachability and authentication are NOT TESTED. Do not publish input snapshots or reports.

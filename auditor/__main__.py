@@ -10,6 +10,7 @@ import sys
 from auditor.network import AuditError,validate_target
 from auditor.runner import audit,public_report
 from auditor.admin_inventory import review_inventory_file, InventoryError
+from auditor.admin_snapshot import review_snapshot, SnapshotError
 
 
 def write_json(path: str, value: dict) -> None:
@@ -33,8 +34,17 @@ def main(argv: list[str] | None = None) -> int:
     inventory=sub.add_parser('review-admin-inventory',help='Offline review of owner-provided administration controls; no network')
     inventory.add_argument('--input',required=True,help='PRIVATE owner inventory JSON')
     inventory.add_argument('--out',required=True,help='PRIVATE local review report; never publish')
+    snapshot=sub.add_parser('review-admin-snapshot',help='Offline Playwright review of owner-provided HTML; no website navigation')
+    snapshot.add_argument('--input',required=True,help='Private UTF-8 HTML snapshot')
+    snapshot.add_argument('--out',required=True,help='Private JSON report')
     args=parser.parse_args(argv)
     try:
+        if args.action=='review-admin-snapshot':
+            if Path(args.input).resolve() == Path(args.out).resolve():
+                raise SnapshotError('Input and output must differ')
+            write_json(args.out,review_snapshot(args.input))
+            print('Offline interface review saved; live verification not tested')
+            return 0
         if args.action=='review-admin-inventory':
             if Path(args.input).resolve() == Path(args.out).resolve():
                 raise InventoryError('Input and report must be different files')
@@ -66,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         print('Audit saved; scan_status=' + result['scan_status'] + '; authorization=' + result['authorization']['status']
               + '; active=' + result['active']['status'])
         return 0 if result['scan_status']=='completed' else 2
-    except (AuditError,ValueError,InventoryError) as exc:
+    except (AuditError,ValueError,InventoryError,SnapshotError) as exc:
         print('Audit rejected: ' + str(exc),file=sys.stderr)
         return 2
 

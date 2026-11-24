@@ -54,6 +54,18 @@ Do not commit real inventories or reports to the public repository. The command 
 
 Public HTML observations count at most ten distinct explicitly advertised descendant hostnames, with an overflow flag; no names are disclosed or contacted. The count is not a prevalence ranking. The local owner inventory optionally accepts `publicly_advertised` (yes/no/unknown) and `name_prevalence` (high/medium/low/unknown). Prioritize advertised records first, then high and medium declared name prevalence, with a deterministic alias tie-break. Select at most ten eligible existing records in `priority_review`; full control review remains unchanged. Prevalence is the owner's assessment, not measured statistics. No guessed hostnames, wordlists or additional requests.
 
+## Optional offline Playwright interface review
+
+For an owner-provided UTF-8 HTML snapshot, install Playwright and its Chromium browser in a controlled local environment, then run:
+
+```bash
+python3 -m pip install playwright
+python3 -m playwright install chromium
+python3 -m auditor review-admin-snapshot --input owner-page.html --out private-interface-review.json
+```
+
+The browser renders supplied HTML offline, with JavaScript disabled and requests aborted. It does not navigate to websites, generate hostnames, submit forms, or enter credentials. A candidate admin login requires explicit administration labels plus a visible form/password input. Error or ambiguous pages do not receive a Low candidate warning. Results never establish live reachability or authentication bypass. Keep snapshots and reports private. Browser integration tests are opt-in via RUN_OFFLINE_BROWSER_TESTS=1.
+
 ## Output and interpretation
 
 - `public.findings`: direct configuration observations (e.g. absent security headers). Severity is a prioritization suggestion, not proof of compromise.
