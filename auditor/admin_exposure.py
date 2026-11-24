@@ -1,6 +1,7 @@
 """Inspect already-fetched HTML for explicitly advertised administration links.
 
-No network calls, route guessing, crawling, script execution, or link disclosure.
+Only explicitly labeled links in supplied HTML are classified. No network calls,
+route guessing, hostname enumeration, crawling, script execution, or link disclosure.
 """
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit
@@ -14,6 +15,8 @@ CODE = 'ADMIN_INTERFACE_EXPOSURE'
 LABELS = frozenset({
     'admin login', 'administrator login', 'administration',
     'admin portal', 'admin dashboard', 'admin panel',
+    'administration portal', 'management console', 'administrator sign in',
+    'admin sign in', 'administrator portal', 'administration login',
     'đăng nhập quản trị', 'đăng nhập quản trị viên',
     'trang quản trị', 'cổng quản trị', 'quản trị hệ thống',
 })
@@ -31,7 +34,8 @@ class _PublicLinks(HTMLParser):
         self.anchor = None
         self.parts = []
         self.suppressed = []
-        self.found = False
+        self.signals = set()
+        self.accessible_labels = []
         self.base_uncertain = False
 
     def handle_starttag(self, tag, attrs):
@@ -47,6 +51,7 @@ class _PublicLinks(HTMLParser):
         if tag == 'a':
             self.anchor = values.get('href')
             self.parts = []
+            self.accessible_labels = [values.get('aria-label') or '', values.get('title') or '']
 
     def handle_data(self, data):
         if self.anchor is not None and not self.suppressed:
@@ -59,19 +64,27 @@ class _PublicLinks(HTMLParser):
             return
         if tag != 'a':
             return
-        href, label = self.anchor, _label(' '.join(self.parts))
+        href = self.anchor
+        labels = [_label(' '.join(self.parts)), *map(_label, self.accessible_labels)]
         self.anchor = None
         self.parts = []
-        if not href or label not in LABELS:
+        self.accessible_labels = []
+        if not href or not any(label in LABELS for label in labels):
             return
         if href.startswith('#') or any(ord(c) < 32 for c in href) or '\\' in href:
             return
         try:
             target = urlsplit(urljoin(self.origin, href))
-            if (target.scheme == 'https' and target.hostname == self.hostname
-                    and target.port in (None, 443) and target.username is None
-                    and target.password is None):
-                self.found = True
+            if (target.scheme != 'https' or target.port not in (None, 443)
+                    or target.username is not None or target.password is not None
+                    or not target.hostname):
+                return
+            if target.hostname == self.hostname:
+                self.signals.add('same_host_advertised_link')
+            elif target.hostname.endswith('.' + self.hostname):
+                # Classify only an explicitly published descendant link.
+                # Never generate candidate names, resolve DNS or visit it.
+                self.signals.add('descendant_host_advertised_link')
         except ValueError:
             return
 
@@ -79,7 +92,9 @@ class _PublicLinks(HTMLParser):
 def inspect_admin_exposure(response: Response, hostname: str) -> tuple[dict, list[dict]]:
     """Return scoped status and at most one low-severity finding without URLs."""
     status = {'status': 'not_tested', 'scope': 'homepage HTML only',
-              'note': 'No suitable HTML response was inspected'}
+              'note': 'No suitable HTML response was inspected',
+              'evidence_types': [], 'destination_verification': 'not_tested',
+              'hostname_discovery': 'not_tested'}
     ctype = (response.header('Content-Type') or '').split(';', 1)[0].strip().lower()
     encoding = (response.header('Content-Encoding') or 'identity').strip().lower()
     if not 200 <= response.status < 300 or ctype != 'text/html' or encoding != 'identity' or not response.body.strip():
@@ -95,10 +110,11 @@ def inspect_admin_exposure(response: Response, hostname: str) -> tuple[dict, lis
     if parser.base_uncertain:
         status['note'] = 'Modified HTML base URL; link interpretation skipped'
         return status, []
-    if not parser.found:
-        status.update(status='pass', note='No explicit administration link label observed in the inspected HTML; undisclosed interfaces and access controls were not tested')
+    if not parser.signals:
+        status.update(status='not_found', note='No explicit administration link label observed in the inspected HTML; undisclosed interfaces and access controls were not tested')
         return status, []
-    status.update(status='warning', note='An explicit same-origin administration link label is advertised; destination was not visited or verified')
+    status.update(status='warning', evidence_types=sorted(parser.signals),
+                  note='An explicit administration link is advertised on the same host or a descendant hostname; destination was not visited or verified')
     return status, [issue(CODE, 'Publicly advertised administration link', 'low',
                           'confirmed-configuration',
                           'Explicit administration link label in public homepage HTML; destination and access controls not tested; URL omitted')]

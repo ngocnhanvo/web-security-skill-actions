@@ -32,7 +32,7 @@ def audit(domain: str, *, authorization_url: str | None = None, challenge: str |
     report={
         'schema_version':'1.0.0', 'target_hostname':host,
         'scan_status':'completed', 'public':{'status':'completed','findings':[],'technology_hints':[],
-                                             'admin_interface_exposure':{'status':'not_tested','scope':'homepage HTML only','note':'No suitable HTML response was inspected'},
+                                             'admin_interface_exposure':{'status':'not_tested','scope':'homepage HTML only','note':'No suitable HTML response was inspected','evidence_types':[],'destination_verification':'not_tested','hostname_discovery':'not_tested'},
                                              'checks_not_performed':['CVE exploitability','source code','database','business logic']},
         'authorization':{'status':'public_only'},
         'active':{'status':'not_run','findings':[],'tests_executed':0},
