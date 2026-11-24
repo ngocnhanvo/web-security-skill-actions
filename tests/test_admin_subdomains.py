@@ -125,3 +125,73 @@ class TestAdminSubdomainReview(unittest.TestCase):
 
 if __name__=='__main__':
     unittest.main()
+
+
+class TestWordPressRedirectChain(unittest.TestCase):
+    def test_realistic_wp_chain_ends_in_login_candidate(self):
+        from auditor.admin_subdomains import _same_host_target
+        from urllib.parse import quote
+        calls = []
+        host = 'admin.esc.vn'
+        wp = '/wp-login.php?redirect_to=' + quote('https://' + host + '/wp-admin/', safe='') + '&reauth=1'
+
+        class WordPressClient:
+            def __init__(self, hostname, ips): self.hostname = hostname
+            def get_unfollowed(self, url):
+                calls.append(url)
+                if url == 'https://' + host + '/':
+                    return Response(302, [('Location', '/wp-admin/')], b'')
+                if url == 'https://' + host + '/wp-admin/':
+                    return Response(302, [('Location', wp)], b'')
+                return Response(200, [('Content-Type','text/html; charset=UTF-8')], b'<form id="loginform"><input id="user_login"><input id="user_pass" type="password"></form>')
+
+        def resolver(candidate):
+            if candidate == host: return ['8.8.8.8']
+            raise AuditError('DNS lookup failed')
+        result = review_common_admin_hosts('esc.vn', resolve=resolver,
+                     client_factory=WordPressClient,
+                     render=lambda body: {'status':'admin_login_candidate'}, budget=budget())
+        found = result['results'][0]
+        self.assertEqual(found['request_count'], 3)
+        self.assertEqual(found['redirect_count'], 2)
+        self.assertEqual(found['first_http_status'], 302)
+        self.assertEqual(found['http_status'], 200)
+        self.assertEqual(found['browser_status'], 'admin_login_candidate')
+        self.assertEqual(found['risk'], 'low')
+        self.assertEqual(result['http_attempted_count'], 3)
+        self.assertNotIn('redirect_to', repr(result))
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(_same_host_target(calls[1], wp, host), calls[2])
+
+    def test_rejects_unsafe_redirect_to_queries_and_paths(self):
+        from auditor.admin_subdomains import _same_host_target
+        from urllib.parse import quote
+        host='admin.example.com'
+        base='https://' + host + '/wp-admin/'
+        bad=[
+            '/wp-login.php?redirect_to=' + quote('https://evil.com/wp-admin/', safe='') + '&reauth=1',
+            '/wp-login.php?redirect_to=' + quote('http://'+host+'/wp-admin/', safe=''),
+            '/wp-login.php?redirect_to=' + quote('https://'+host+'/user/', safe=''),
+            '/wp-login.php?redirect_to=' + quote('https://'+host+'/wp-admin/?x=1', safe=''),
+            '/wp-login.php?redirect_to=' + quote('https://'+host+'/wp-admin/', safe='')+'&token=secret',
+            '/wp-login.php?reauth=1&reauth=1',
+            '/anything?param=hello',
+            'https://other.example.com/wp-login.php',
+            '/wp-login.php?reauth=0%0D%0AHeader:%20bad',
+        ]
+        for location in bad:
+            with self.subTest(location=location):
+                self.assertIsNone(_same_host_target(base, location, host))
+
+    def test_redirect_limit_still_enforced(self):
+        host='admin.example.com'
+        class Loops:
+            def __init__(self, hostname, ips): self.count=0
+            def get_unfollowed(self, url):
+                self.count+=1
+                return Response(302,[('Location','/r'+str(self.count))],b'')
+        report=review_common_admin_hosts('example.com',
+              resolve=lambda h: ['8.8.8.8'] if h==host else (_ for _ in ()).throw(AuditError('DNS lookup failed')),
+              client_factory=Loops,budget=budget())
+        self.assertEqual(report['results'][0]['request_count'],3)
+        self.assertEqual(report['results'][0]['https_status'],'redirect_limit_reached')

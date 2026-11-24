@@ -18,11 +18,14 @@ def normalize(value):
     return ' '.join(unicodedata.normalize('NFC', value).casefold().split())
 
 
-def classify_interface(title, headings, password_visible, form_visible):
+def classify_interface(title, headings, password_visible, form_visible, wordpress_login_form=False):
     labels = [normalize(x) for x in [title, *headings]]
     error = any(re.search(r'\b(404|403|not found|access denied|domain for sale|default web site|bad gateway)\b', x) for x in labels)
     admin = any(re.search(r'\b(admin login|admin sign in|administrator login|administration portal|admin panel|admin dashboard|management console|đăng nhập quản trị|trang quản trị|cổng quản trị)\b', x) for x in labels)
     customer = any(re.search(r'\b(customer login|customer account|member login|đăng nhập khách hàng|tài khoản khách hàng)\b', x) for x in labels)
+    # WordPress login uses generic translated titles; recognize its distinctive
+    # visible loginform + username/password inputs rather than a page title alone.
+    admin = admin or bool(wordpress_login_form)
     if error:
         status = 'not_verified'
     elif admin and password_visible and form_visible and not customer:
@@ -34,7 +37,7 @@ def classify_interface(title, headings, password_visible, form_visible):
     return {'status': status, 'severity': 'low' if status == 'admin_login_candidate' else None,
             'evidence': {'admin_label': admin, 'visible_password_input': bool(password_visible),
                          'visible_form': bool(form_visible), 'customer_label': customer,
-                         'error_page_label': error},
+                         'error_page_label': error, 'wordpress_login_form': bool(wordpress_login_form)},
             'scope': 'operator_supplied_offline_snapshot', 'live_reachability': 'not_tested',
             'authentication': 'not_tested',
             'note': 'Visual indicators only; no live exposure or authentication bypass established'}
@@ -74,7 +77,10 @@ def review_html_bytes(raw):
                 headings = page.locator('h1:visible, h2:visible').all_text_contents()[:30]
                 password = page.locator('input[type=password]:visible').count() > 0
                 form = page.locator('form:visible').count() > 0
-                return classify_interface(title, headings, password, form)
+                wp_login = (page.locator('form#loginform:visible').count() > 0
+                            and page.locator('input#user_login:visible').count() > 0
+                            and page.locator('input#user_pass[type=password]:visible').count() > 0)
+                return classify_interface(title, headings, password, form, wp_login)
             finally:
                 browser.close()
     except Exception as exc:

@@ -32,6 +32,17 @@ class TestAdminSnapshot(unittest.TestCase):
     def test_vietnamese_heading(self):
         self.assertEqual(classify_interface('Site', ['Đăng nhập quản trị'], True, True)['status'], 'admin_login_candidate')
 
+    def test_translated_wordpress_login_with_distinct_form(self):
+        r=classify_interface('Đăng nhập ‹ ESC.VN — WordPress', ['Powered by WordPress'],
+                             True, True, wordpress_login_form=True)
+        self.assertEqual(r['status'],'admin_login_candidate')
+        self.assertEqual(r['severity'],'low')
+        self.assertTrue(r['evidence']['wordpress_login_form'])
+
+    def test_wordpress_title_without_form_is_not_admin(self):
+        r=classify_interface('My WordPress Website', [], False, False)
+        self.assertEqual(r['status'],'unknown')
+
     def test_reject_large_snapshot(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'x.html'
