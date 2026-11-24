@@ -32,3 +32,7 @@ Public mode counts up to ten distinct explicitly advertised descendant hostnames
 ## Offline browser observation
 
 The optional `review-admin-snapshot` command renders an operator-supplied local HTML snapshot with Playwright Chromium, offline, JavaScript disabled, service workers blocked, and network routes aborted. It observes page title, visible headings, form and password-input visibility only. It never navigates to a target URL. A Low candidate label requires explicit administration evidence and visible login controls; error, ordinary customer login and ambiguous cases are distinct. Live reachability and authentication are NOT TESTED. Do not publish input snapshots or reports.
+
+## Public finding roll-up
+
+The hostname-by-hostname `public.admin_subdomain_review` remains authoritative for individual DNS, TLS, redirect and browser outcomes. One or more `admin_login_candidate` observations additionally produce one aggregate Low `ADMIN_LOGIN_INTERFACE_PUBLIC` configuration observation in `public.findings`. No site-wide negative inference is allowed when this list is empty; always inspect the detailed record statuses.

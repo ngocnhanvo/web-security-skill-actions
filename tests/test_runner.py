@@ -69,6 +69,31 @@ class TestRunner(unittest.TestCase):
         self.assertEqual(r['public']['admin_subdomain_review']['candidate_count'],10)
         self.assertEqual(c.requests,['https://example.com/'])
 
+    def test_admin_candidate_also_appears_in_primary_findings(self):
+        c=FakeTransport('example.com',['8.8.8.8'])
+        with patch('auditor.runner.review_common_admin_hosts',return_value={
+            'status':'completed','candidate_count':10,'admin_login_candidates':1,
+            'results':[{'hostname':'admin.example.com','browser_status':'admin_login_candidate',
+                        'http_status':200,'risk':'low'}]
+        }):
+            r=self._audit(c,admin_subdomains=True)
+        findings=[x for x in public_report(r)['public']['findings']
+                  if x['code']=='ADMIN_LOGIN_INTERFACE_PUBLIC']
+        self.assertEqual(len(findings),1)
+        self.assertEqual(findings[0]['severity'],'low')
+        self.assertIn('admin_subdomain_review', findings[0]['evidence'])
+        self.assertNotIn('/wp-login.php?',json.dumps(public_report(r)))
+
+    def test_no_admin_candidate_keeps_primary_findings_free_of_admin_code(self):
+        c=FakeTransport('example.com',['8.8.8.8'])
+        with patch('auditor.runner.review_common_admin_hosts',return_value={
+            'status':'completed','candidate_count':10,'admin_login_candidates':0,
+            'results':[{'hostname':'admin.example.com','browser_status':'unknown'}]
+        }):
+            r=self._audit(c,admin_subdomains=True)
+        self.assertFalse(any(f['code']=='ADMIN_LOGIN_INTERFACE_PUBLIC'
+                             for f in r['public']['findings']))
+
     def test_waf_block_page_not_scored_as_real_site(self):
         class Blocked(FakeTransport):
             def get(self, url):

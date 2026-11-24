@@ -78,7 +78,7 @@ Standalone local invocation:
 python3 -m auditor scan --domain example.com --offline-browser --admin-subdomains --public-out public-summary.json
 ```
 
-The authorization mode is separate; the CLI rejects using `--admin-subdomains` together with `--authorization-url`. Since predictable hostnames are included in publicly visible scan artifacts, do not use public Actions for private infrastructure inventories.
+When a visible administration login is confirmed, the public summary also includes one aggregate Low-severity `ADMIN_LOGIN_INTERFACE_PUBLIC` observation under `public.findings`, rather than incorrectly reporting zero findings. This is not an authentication bypass finding. The authorization mode is separate; the CLI rejects using `--admin-subdomains` together with `--authorization-url`. Since predictable hostnames are included in publicly visible scan artifacts, do not use public Actions for private infrastructure inventories.
 
 ## Output and interpretation
 

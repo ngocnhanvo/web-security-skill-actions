@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 
 from auditor.authorization import AuthorizationError, decode_authorization, validate_authorization
 from auditor.budget import Budget, BudgetError
-from auditor.checks import check_headers, certificate_findings, fingerprints
+from auditor.checks import check_headers, certificate_findings, fingerprints, issue
 from auditor.admin_exposure import inspect_admin_exposure
 from auditor.admin_snapshot import review_html_bytes, SnapshotError
 from auditor.admin_subdomains import review_common_admin_hosts
@@ -68,7 +68,22 @@ def audit(domain: str, *, authorization_url: str | None = None, challenge: str |
         report['public']['error']=str(exc)
         return report
     if admin_subdomains and not authorization_url:
-        report['public']['admin_subdomain_review'] = review_common_admin_hosts(host, budget=budget)
+        sub_report = review_common_admin_hosts(host, budget=budget)
+        report['public']['admin_subdomain_review'] = sub_report
+        # A verified visible login should appear in the primary finding list
+        # as well as the detailed hostname-by-hostname review.
+        if sub_report.get('admin_login_candidates', 0) > 0 or any(
+            row.get('browser_status') == 'admin_login_candidate'
+            for row in sub_report.get('results', [])
+        ):
+            report['public']['findings'].append(issue(
+                'ADMIN_LOGIN_INTERFACE_PUBLIC',
+                'Public-facing administration login interface observed', 'low',
+                'confirmed-configuration',
+                'HTTPS login form and administration-specific visual evidence observed; '
+                'see public.admin_subdomain_review for checked hostnames. '
+                'No login or authentication bypass attempted.'
+            ))
     if not authorization_url:
         return report
 
