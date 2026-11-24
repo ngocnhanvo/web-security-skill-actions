@@ -59,6 +59,16 @@ class TestRunner(unittest.TestCase):
         self.assertEqual(r['public']['homepage_browser_review']['status'],'unknown')
         self.assertEqual(r['public']['homepage_browser_review']['scope'],'homepage HTML offline')
 
+    def test_requested_subdomain_review_includes_all_candidates(self):
+        c=FakeTransport('example.com',['8.8.8.8'])
+        with patch('auditor.runner.review_common_admin_hosts',return_value={
+            'status':'completed','candidate_count':10,'results':[]
+        }) as sub:
+            r=self._audit(c,admin_subdomains=True)
+        sub.assert_called_once()
+        self.assertEqual(r['public']['admin_subdomain_review']['candidate_count'],10)
+        self.assertEqual(c.requests,['https://example.com/'])
+
     def test_waf_block_page_not_scored_as_real_site(self):
         class Blocked(FakeTransport):
             def get(self, url):

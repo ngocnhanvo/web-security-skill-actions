@@ -143,13 +143,17 @@ class PinnedHTTP:
         finally:
             conn.close()
 
-    def get(self, url: str) -> Response:
+    def get_unfollowed(self, url: str) -> Response:
+        """Return any HTTP status without following redirects, using pinned TLS and DNS guard."""
         path = validate_https_url(url, self.host)
         # DNS rebinding guard: re-check on every call, pin TCP to approved address.
         fresh = resolve_global_ips(self.host)
         if not set(fresh).intersection(self.ips):
             raise AuditError('DNS changed since target verification')
-        answer = self._get_path(path)
+        return self._get_path(path)
+
+    def get(self, url: str) -> Response:
+        answer = self.get_unfollowed(url)
         if 300 <= answer.status < 400:
             raise AuditError('Redirect is not followed; target boundary preserved')
         return answer

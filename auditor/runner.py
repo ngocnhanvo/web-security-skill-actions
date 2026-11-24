@@ -9,6 +9,7 @@ from auditor.budget import Budget, BudgetError
 from auditor.checks import check_headers, certificate_findings, fingerprints
 from auditor.admin_exposure import inspect_admin_exposure
 from auditor.admin_snapshot import review_html_bytes, SnapshotError
+from auditor.admin_subdomains import review_common_admin_hosts
 from auditor.network import AuditError, PinnedHTTP, resolve_global_ips, validate_target, validate_https_url, tls_days_until_expiry
 from auditor.probes import probe_sql, probe_xss, probe_guest_auth
 
@@ -22,7 +23,8 @@ def _read(client, url, budget):
 
 def audit(domain: str, *, authorization_url: str | None = None, challenge: str | None = None,
           client=None, resolve=resolve_global_ips, now: datetime | None = None,
-          budget: Budget | None = None, offline_browser: bool = False) -> dict:
+          budget: Budget | None = None, offline_browser: bool = False,
+          admin_subdomains: bool = False) -> dict:
     """Always start public. Active checks require on-host authorization revalidation."""
     host=validate_target(domain)
     now=now or datetime.now(timezone.utc)
@@ -35,6 +37,7 @@ def audit(domain: str, *, authorization_url: str | None = None, challenge: str |
         'scan_status':'completed', 'public':{'status':'completed','findings':[],'technology_hints':[],
                                              'admin_interface_exposure':{'status':'not_tested','scope':'homepage HTML only','note':'No suitable HTML response was inspected','evidence_types':[],'destination_verification':'not_tested','hostname_discovery':'not_tested'},
                                              'homepage_browser_review':{'status':'not_tested','scope':'homepage HTML offline','live_reachability':'not_tested','authentication':'not_tested'},
+                                             'admin_subdomain_review':{'status':'not_tested','reason':'Not requested'},
                                              'checks_not_performed':['CVE exploitability','source code','database','business logic']},
         'authorization':{'status':'public_only'},
         'active':{'status':'not_run','findings':[],'tests_executed':0},
@@ -64,6 +67,8 @@ def audit(domain: str, *, authorization_url: str | None = None, challenge: str |
         report['public']['status']='halted'
         report['public']['error']=str(exc)
         return report
+    if admin_subdomains and not authorization_url:
+        report['public']['admin_subdomain_review'] = review_common_admin_hosts(host, budget=budget)
     if not authorization_url:
         return report
 

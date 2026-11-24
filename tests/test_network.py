@@ -35,6 +35,13 @@ class TestNetwork(unittest.TestCase):
         with self.assertRaises(AuditError):
             PinnedHTTP('example.com', ['8.8.8.8']).get('https://evil.com/')
 
+    def test_get_unfollowed_records_3xx_without_redirect_request(self):
+        from auditor.network import Response
+        with patch('auditor.network.resolve_global_ips',return_value=['8.8.8.8']), patch.object(PinnedHTTP, '_get_path',return_value=Response(302,[('Location','https://other.example/')],b'')) as get:
+            value=PinnedHTTP('example.com',['8.8.8.8']).get_unfollowed('https://example.com/')
+        self.assertEqual(value.status,302)
+        get.assert_called_once_with('/')
+
     def test_request_rejects_redirects_without_following(self):
         class Dummy:
             status=302

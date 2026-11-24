@@ -61,11 +61,16 @@ jobs:
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "push" ]]; then
             # The push bridge is strictly public-only: no authorization or active probes.
-            python3 -m auditor scan --offline-browser \
+            python3 -m auditor scan --offline-browser --admin-subdomains \
               --domain "${{ steps.public_request.outputs.domain }}" \
               --public-out "$RUNNER_TEMP/public-report.json"
           else
-            python3 -m auditor scan --offline-browser \
+            if [[ -n "$AUDIT_AUTH_URL" ]]; then
+              ADMIN_ARGS=()
+            else
+              ADMIN_ARGS=(--admin-subdomains)
+            fi
+            python3 -m auditor scan --offline-browser "${ADMIN_ARGS[@]}" \
               --domain "$AUDIT_DOMAIN" \
               --authorization-url "$AUDIT_AUTH_URL" \
               --challenge "$AUDIT_CHALLENGE" \

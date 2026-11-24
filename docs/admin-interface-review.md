@@ -1,5 +1,9 @@
 # Administration interface review
 
+## Fixed Top 10 direct-child hostname candidates
+
+The public workflow now explicitly tests these ten *example names*, with no claim of measured prevalence: admin, quantri, administrator, cms, backend, panel, manage, dashboard, portal, cpanel. It prepends them to the exact requested domain, verifies global DNS, uses pinned TLS on 443, makes at most one GET to /, never follows redirects, and renders valid fetched HTML in offline Chromium for classification. Only an actual admin-login visual candidate is Low; an available DNS name alone is not a finding. Every candidate appears in the report, including NOT TESTED and errors. Stop after 429 or 5xx. There are no credential attempts, hidden path guessing, larger wordlists or browser-side network requests. Use `--admin-subdomains` with public CLI only, not the authorized phase.
+
 ## Public observation
 The runner classifies explicit administration-link advertisements in the already downloaded homepage HTML, including accessible labels and links explicitly pointing to a descendant hostname. It never attempts the link. A warning is a Low configuration observation only; it does not establish reachability. NOT FOUND is not a security pass. DNS discovery and destination verification remain NOT TESTED.
 
