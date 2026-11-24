@@ -35,6 +35,21 @@ class TestRunner(unittest.TestCase):
         self.assertEqual(r['active']['status'],'not_run')
         self.assertNotIn('VERYSECRET',json.dumps(r))
 
+    def test_admin_link_check_never_fetches_advertised_destination(self):
+        class Advertised(FakeTransport):
+            def get(self, url):
+                self.requests.append(url)
+                return Response(200,[('Content-Type','text/html')],b'<a href="/owner-only?key=SECRET">Admin login</a>')
+        c=Advertised('example.com',['8.8.8.8'])
+        r=self._audit(c)
+        self.assertEqual(c.requests,['https://example.com/'])
+        self.assertEqual(r['public']['admin_interface_exposure']['status'],'warning')
+        summary=json.dumps(public_report(r))
+        self.assertIn('ADMIN_INTERFACE_EXPOSURE', summary)
+        self.assertNotIn('owner-only', summary)
+        self.assertNotIn('SECRET', summary)
+        self.assertEqual(r['active']['status'],'not_run')
+
     def test_waf_block_page_not_scored_as_real_site(self):
         class Blocked(FakeTransport):
             def get(self, url):

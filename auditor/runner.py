@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 from auditor.authorization import AuthorizationError, decode_authorization, validate_authorization
 from auditor.budget import Budget, BudgetError
 from auditor.checks import check_headers, certificate_findings, fingerprints
+from auditor.admin_exposure import inspect_admin_exposure
 from auditor.network import AuditError, PinnedHTTP, resolve_global_ips, validate_target, validate_https_url, tls_days_until_expiry
 from auditor.probes import probe_sql, probe_xss, probe_guest_auth
 
@@ -31,6 +32,7 @@ def audit(domain: str, *, authorization_url: str | None = None, challenge: str |
     report={
         'schema_version':'1.0.0', 'target_hostname':host,
         'scan_status':'completed', 'public':{'status':'completed','findings':[],'technology_hints':[],
+                                             'admin_interface_exposure':{'status':'not_tested','scope':'homepage HTML only','note':'No suitable HTML response was inspected'},
                                              'checks_not_performed':['CVE exploitability','source code','database','business logic']},
         'authorization':{'status':'public_only'},
         'active':{'status':'not_run','findings':[],'tests_executed':0},
@@ -43,6 +45,9 @@ def audit(domain: str, *, authorization_url: str | None = None, challenge: str |
             raise AuditError('Homepage was not accessible as 2xx; configuration scoring skipped')
         report['public']['findings']=check_headers(home)
         report['public']['technology_hints']=fingerprints(home)
+        admin_status, admin_findings = inspect_admin_exposure(home, host)
+        report['public']['admin_interface_exposure'] = admin_status
+        report['public']['findings'] += admin_findings
         if use_real_transport:
             report['public']['findings']+=certificate_findings(tls_days_until_expiry(host,public_ips,now.timestamp()))
     except (BudgetError, AuditError) as exc:
